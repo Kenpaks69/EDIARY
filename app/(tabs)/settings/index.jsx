@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import CustomAlertModal from "../../../components/CustomAlertModal";
+import PinEntryModal from "../../../components/PinEntryModal";
 import { useAuth } from "../../../context/auth-context";
 
 export default function SettingsScreen() {
@@ -28,9 +29,14 @@ export default function SettingsScreen() {
   const [selectedTheme, setSelectedTheme] = useState("light");
   
   const router = useRouter();
-  const { logout, user } = useAuth();
+  const { logout, user, setPin, removePin } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [pinMode, setPinMode] = useState("verify"); // 'set' or 'verify'
+  const [removePinModalVisible, setRemovePinModalVisible] = useState(false);
+  const [successModal, setSuccessModal] = useState({ visible: false, message: "" });
 
   // Helper function to get user-specific storage key
   const getStorageKey = useCallback((userId) => {
@@ -173,6 +179,38 @@ export default function SettingsScreen() {
     }
   };
 
+  const handlePinToggle = () => {
+    if (user?.hasPin) {
+      setRemovePinModalVisible(true);
+    } else {
+      setPinMode("set");
+      setPinModalVisible(true);
+    }
+  };
+
+  const confirmRemovePin = async () => {
+    try {
+      await removePin();
+      setRemovePinModalVisible(false);
+      setSuccessModal({ visible: true, message: "Security PIN removed successfully" });
+    } catch (e) {
+      setRemovePinModalVisible(false);
+      Alert.alert("Error", e.message);
+    }
+  };
+
+  const handlePinSuccess = async (pin) => {
+    try {
+      if (pinMode === "set") {
+        await setPin(pin);
+        setPinModalVisible(false);
+        setSuccessModal({ visible: true, message: "Security PIN set successfully" });
+      }
+    } catch (e) {
+      Alert.alert("Error", e.message);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -237,18 +275,25 @@ export default function SettingsScreen() {
             />
         )}
 
-        {/* Hidden on Android, handled by onChange. If iOS, might want to show inside a Modal or conditional rendering. 
-            The above conditional renders standard picker on Android (dialog) or iOS (bottom spinner if display=spinner). 
-        */}
-
         <View style={styles.section}>
           <View style={styles.card}>
             <Text style={styles.sectionLabel}>Security</Text>
-            <View style={styles.row}>
+            <TouchableOpacity 
+              style={styles.row} 
+              activeOpacity={0.7}
+              onPress={handlePinToggle}
+            >
               <Ionicons name="shield-checkmark" size={20} color="#FFA36C" />
-              <Text style={styles.cardPrimary}>Security Pin</Text>
-              <Text style={styles.statusText}>Not enrolled</Text>
-            </View>
+              <Text style={styles.cardPrimary}>Security PIN</Text>
+              <Text style={[styles.statusText, user?.hasPin && styles.statusActive]}>
+                {user?.hasPin ? "Enabled" : "Not enrolled"}
+              </Text>
+              <Ionicons 
+                name={user?.hasPin ? "checkmark-circle" : "chevron-forward"} 
+                size={18} 
+                color={user?.hasPin ? "#4CAF50" : "#B6ABA2"} 
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -289,6 +334,33 @@ export default function SettingsScreen() {
         isDelete={false}
         onCancel={() => setLogoutModalVisible(false)}
         onConfirm={confirmLogout}
+      />
+
+      <CustomAlertModal
+        visible={removePinModalVisible}
+        title="Remove PIN"
+        message="Are you sure you want to remove your security PIN?"
+        confirmText="Remove"
+        isDelete={true}
+        onCancel={() => setRemovePinModalVisible(false)}
+        onConfirm={confirmRemovePin}
+      />
+
+      <CustomAlertModal
+        visible={successModal.visible}
+        title="Success"
+        message={successModal.message}
+        confirmText="OK"
+        showCancel={false}
+        onConfirm={() => setSuccessModal({ ...successModal, visible: false })}
+        onCancel={() => setSuccessModal({ ...successModal, visible: false })}
+      />
+
+      <PinEntryModal
+        visible={pinModalVisible}
+        mode={pinMode}
+        onClose={() => setPinModalVisible(false)}
+        onSuccess={handlePinSuccess}
       />
     </SafeAreaView>
   );
@@ -365,6 +437,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#B6ABA2",
     fontWeight: "500",
+  },
+  statusActive: {
+    color: "#4CAF50",
   },
   choiceRow: {
     paddingRight: 8,

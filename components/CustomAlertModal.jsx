@@ -10,6 +10,7 @@ export default function CustomAlertModal({
   cancelText = "Cancel",
   confirmText = "Confirm",
   isDelete = false, // If true, confirm button will be red
+  showCancel = true,
 }) {
   return (
     <Modal
@@ -24,13 +25,15 @@ export default function CustomAlertModal({
           <Text style={styles.message}>{message}</Text>
 
           <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={onCancel}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cancelText}>{cancelText}</Text>
-            </TouchableOpacity>
+            {showCancel && (
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={onCancel}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelText}>{cancelText}</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[

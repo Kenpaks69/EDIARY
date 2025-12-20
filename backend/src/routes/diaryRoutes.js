@@ -1,7 +1,7 @@
 import express from "express";
-import Diary from "../models/Diaries.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
 import cloudinary from "../lib/cloudinary.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+import Diary from "../models/Diaries.js";
 
 const router = express.Router();
 
@@ -193,6 +193,23 @@ router.delete("/:id/permanent", async (req, res) => {
 
         if (!diary) {
             return res.status(404).json({ message: "Diary entry not found in trash" });
+        }
+
+        // Cleanup image from Cloudinary if it exists
+        if (diary.imageUri) {
+            try {
+                // Extract public_id from Cloudinary URL
+                // Format: https://res.cloudinary.com/.../upload/v12345/folder/filename.ext
+                const regex = /\/upload\/(?:v\d+\/)?(.+)\.\w+$/;
+                const match = diary.imageUri.match(regex);
+                if (match) {
+                    const publicId = match[1];
+                    await cloudinary.uploader.destroy(publicId);
+                    console.log("Deleted image from Cloudinary:", publicId);
+                }
+            } catch (cloudinaryError) {
+                console.error("Error deleting image from Cloudinary:", cloudinaryError);
+            }
         }
 
         res.status(200).json({ message: "Diary entry permanently deleted" });

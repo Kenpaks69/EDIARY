@@ -1,5 +1,5 @@
-import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
     email: {
@@ -36,7 +36,25 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "",
     },
+
+    securityPin: {
+        type: String,
+        default: null,
+    },
+}, {
+    timestamps: true,
+    toJSON: {
+        virtuals: true,
+        transform: function (doc, ret) {
+            delete ret.securityPin; // Never expose PIN hash
+            return ret;
+        }
+    }
 })
+
+userSchema.virtual("hasPin").get(function () {
+    return !!this.securityPin;
+});
 
 userSchema.pre("save", async function () {
     if (!this.isModified("password")) return;
